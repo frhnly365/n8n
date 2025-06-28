@@ -94,10 +94,12 @@ export const useNodeCreatorStore = defineStore(STORES.NODE_CREATOR, () => {
 		connectionType,
 		node,
 		creatorView,
+		connectionIndex = 0,
 	}: {
 		connectionType: NodeConnectionType;
 		node: string;
 		creatorView?: NodeFilterType;
+		connectionIndex?: number;
 	}) {
 		const nodeName = node ?? ndvStore.activeNodeName;
 		const nodeData = nodeName ? workflowsStore.getNodeByName(nodeName) : null;
@@ -118,7 +120,7 @@ export const useNodeCreatorStore = defineStore(STORES.NODE_CREATOR, () => {
 						sourceHandle: createCanvasConnectionHandleString({
 							mode: 'inputs',
 							type: connectionType,
-							index: 0,
+							index: connectionIndex,
 						}),
 					},
 					eventSource: NODE_CREATOR_OPEN_SOURCES.NOTICE_ERROR_MESSAGE,
@@ -217,6 +219,45 @@ export const useNodeCreatorStore = defineStore(STORES.NODE_CREATOR, () => {
 			source,
 			createNodeActive: true,
 			nodeCreatorView: TRIGGER_NODE_CREATOR_VIEW,
+		});
+	}
+
+	function openNodeCreatorForActions(node: string, eventSource?: NodeCreatorOpenSource) {
+		const actionNode = allNodeCreatorNodes.value.find((i) => i.key === node);
+
+		if (!actionNode) {
+			return;
+		}
+
+		const nodeActions = actions.value[actionNode.key];
+
+		const transformedActions = nodeActions?.map((a) =>
+			transformNodeType(a, actionNode.properties.displayName, 'action'),
+		);
+
+		ndvStore.activeNodeName = null;
+		setSelectedView(REGULAR_NODE_CREATOR_VIEW);
+		setNodeCreatorState({
+			source: eventSource,
+			createNodeActive: true,
+			nodeCreatorView: REGULAR_NODE_CREATOR_VIEW,
+		});
+
+		setTimeout(() => {
+			useViewStacks().pushViewStack(
+				{
+					subcategory: '*',
+					title: actionNode.properties.displayName,
+					nodeIcon: {
+						type: 'icon',
+						name: 'check-double',
+					},
+					rootView: 'Regular',
+					mode: 'actions',
+					items: transformedActions,
+				},
+				{ resetStacks: true },
+			);
 		});
 	}
 
@@ -411,6 +452,7 @@ export const useNodeCreatorStore = defineStore(STORES.NODE_CREATOR, () => {
 		openSelectiveNodeCreator,
 		openNodeCreatorForConnectingNode,
 		openNodeCreatorForTriggerNodes,
+		openNodeCreatorForActions,
 		onCreatorOpened,
 		onNodeFilterChanged,
 		onCategoryExpanded,
